@@ -1,0 +1,31 @@
+defaults:
+  - log : tensorboard
+  - architecture: efficientv2
+  - dataset: mnist
+  - loss: bce
+  - optimizer: adam
+  - hyperparameter: toy
+  - scheduler: CosineAnnealingLR
+  - saver: default_saver
+  - override scheduler/warmup: gradualwarmup
+
+  
+base:
+  world_size: 1
+  use_amp: False
+  mode: train_eval
+  env:
+    mode: gpu
+  seed: '0xC0FFEE'
+  save_dir: ./test
+  resume: False
+  debug: True
+
+MASTER_ADDR: '127.0.0.3'
+MASTER_PORT: '9095'
+
+
+# 변경사항
+# train.py에서 test_loader의 mode를 train으로 변경 (추후 수정))
+# dictionary 형태가 아닌 numpy array로 저장되는 bug fix 요망
+# channel 변경시에는 load_input_from_dicom_files 함수 / train.py에 logger 가 입력 부분 / architecture에 입력 부분 수정 필요. / resnet에도 필요
