@@ -172,9 +172,9 @@ class Trainer():
             with self.amp_autocast():
                 input = image
                 y_pred = model(input).squeeze()
-                label = F.one_hot(label.to(torch.int64), num_classes=10)
-                print(label)
-                print(y_pred)
+                #y_pred = torch.argmax(y_pred, dim=1)[None,:]
+                #label = F.one_hot(label.to(torch.int64), num_classes=10)
+                label = label.to(torch.int64)
                 loss = criterion(y_pred, label).float()
             optimizer.zero_grad(set_to_none=True)
             
@@ -188,6 +188,7 @@ class Trainer():
 
             counter[0] += loss.item()
             # _, y_pred = y_pred.unsqueeze(0).max(1)
+            y_pred = torch.argmax(y_pred, dim=1)
             counter[1] += y_pred.detach().eq(label).sum()
             counter[2] += image.shape[0]
             
