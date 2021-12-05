@@ -19,7 +19,6 @@ class ch_dataset(torch.utils.data.Dataset):
         self.conf = conf[mode]
         self.mode = mode
         self.data_path = self.conf['dataset_path']
-        self.mri_types = self.conf['mri_types']
         self.basic_transforms = ToTensorV2()
         if self.mode == 'train':
             self.label_path = self.conf['label_path']
