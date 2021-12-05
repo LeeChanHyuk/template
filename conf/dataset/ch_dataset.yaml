@@ -1,15 +1,13 @@
 train:
   name : 'dataset'
-  dataset_path : '/media/ddl/새 볼륨/kaggle_data/rsna-miccai-brain-tumor-radiogenomic-classification-registration-64x64/train'
-  label_path : '/media/ddl/새 볼륨/kaggle_data/rsna-miccai-brain-tumor-radiogenomic-classification-registration-64x64/train_labels.csv'
-  submission_path : base_path + 'sample_submission.csv'
-  mri_types : ['FLAIR', 'T1w', 'T1wCE', 'T2w']
+  dataset_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/train'
+  label_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/train.csv'
+  submission_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/sample_submission.csv'
   drop_last : True
 
 
 test:
   name : 'dataset'
-  dataset_path : '/media/ddl/새 볼륨/kaggle_data/rsna-miccai-brain-tumor-radiogenomic-classification-registration-64x64/test'
-  submission_path : base_path + '/media/ddl/새 볼륨/kaggle_data/rsna-miccai-brain-tumor-radiogenomic-classification-registration-64x64/sample_submission.csv'
-  mri_types : ['FLAIR', 'T1w', 'T1wCE', 'T2w']
+  dataset_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/test'
+  submission_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/sample_submission.csv'
   drop_last : True
