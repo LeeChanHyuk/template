@@ -13,6 +13,7 @@ import albumentations as A
 from albumentations.pytorch.transforms import ToTensorV2
 import cv2
 from PIL import Image
+import collections
 
 class ch_dataset(torch.utils.data.Dataset):
     def __init__(self, conf, mode, width=224, height=224) -> None:
@@ -21,6 +22,7 @@ class ch_dataset(torch.utils.data.Dataset):
         self.mode = mode
         self.data_path = self.conf['dataset_path']
         self.basic_transforms = ToTensorV2()
+        self.image_info = collections.defaultdict(dict)
         if self.mode == 'train':
             self.label_path = self.conf['label_path']
             self.additional_transforms_2d = A.Compose([
@@ -28,29 +30,23 @@ class ch_dataset(torch.utils.data.Dataset):
                 A.HorizontalFlip(), # normalize
             ])
             self.label = self.get_label()
-        self.data = self.get_data()
-        self.length = len(self.data) # + data_augmentation (not applied)
+        self.length = len(os.listdir(self.data_path)) # + data_augmentation (not applied)
         self.width = width
         self.height = height
-
-    def get_data(self):
-        # get patient_folders name
-        files = sorted(glob.glob(os.path.join(self.data_path, '*')))
-
-        # initialize whole dataset list
-        datas = []
-        
-        # for each patient folder
-        for file in tqdm.tqdm(files):
-            
-            datas.append(Image.open(os.path.join(self.data_path, file)))
-        return datas
+        self.should_resize = False
 
     def get_label(self):
         csv_file = pd.read_csv(self.conf['label_path'])
+        temp_df = csv_file.groupby('id')['annotation'].agg(lambda x: list(x)).reset_index()
+        for index, row in temp_df.iterrows():
+            self.image_info[index] = {
+                    'image_id': row['id'],
+                    'image_path': os.path.join(self.data_path, row['id'] + '.png'),
+                    'annotations': row["annotation"]
+                    }
         return csv_file
 
-    def rle_decode(mask_rle, shape, color=1):
+    def rle_decode(self, mask_rle, shape, color=1):
         '''
         mask_rle: run-length as string formated (start length)
         shape: (height,width) of array to return 
@@ -82,28 +78,31 @@ class ch_dataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         if self.mode == 'train':
             # load data  
-            data = np.array(self.data[index])
+            img_path = self.image_info[index]["image_path"]
+            data = np.array(Image.open(img_path).convert("RGB"))
+
             # data augmentation # must solve normalize issue!
-            transformed_patient_data = self.additional_transforms_2d(image=data)
+            transformed_data = self.additional_transforms_2d(image=data)
 
             # concat in channel dimension
             if len(data.shape) == 2:
-                data = np.concatenate([data[None,:], transformed_patient_data['image'][None, :]], axis=0)
+                data_concat = np.concatenate([data[None,:], transformed_data['image'][None, :]], axis=0)
             else:
-                data = np.concatenate([data, transformed_patient_data['image']], axis=0)
-
-            # load label_csv file
-            label = self.label[index]
-
-            # object number
-            n_objects = len(label['annotations'])
+                data_concat = np.concatenate([data, transformed_data['image']], axis=0)
 
             # masks
-            masks = np.zeros((len(label['annotations']), self.height, self.width), dtype=np.uint8)
+            info = self.image_info[index]
+
+            # object number
+            n_objects = len(info['annotations'])
+
+
+            n_objects = len(info['annotations'])
+            masks = np.zeros((len(info['annotations']), data.shape[1], data.shape[0]), dtype=np.uint8)
             boxes = []
         
-            for i, annotation in enumerate(label['annotations']):
-                a_mask = self.rle_decode(annotation, (self.height, self.width))
+            for i, annotation in enumerate(info['annotations']):
+                a_mask = self.rle_decode(annotation, (data.shape[1], data.shape[0]))
                 a_mask = Image.fromarray(a_mask)
             
             if self.should_resize:
@@ -121,12 +120,12 @@ class ch_dataset(torch.utils.data.Dataset):
             labels = torch.as_tensor(labels, dtype=torch.int64)
             masks = torch.as_tensor(masks, dtype=torch.uint8)
 
-            image_id = torch.tensor([idx])
+            image_id = torch.tensor([index])
             area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
             iscrowd = torch.zeros((n_objects,), dtype=torch.int64)
 
             # This is the required target for the Mask R-CNN
-            target = {
+            label = {
                 'boxes': boxes,
                 'labels': labels,
                 'masks': masks,
@@ -136,23 +135,23 @@ class ch_dataset(torch.utils.data.Dataset):
             }
                 
             # basic transformation
-            data = self.basic_transforms(image = data)['image']
-            label = self.basic_transforms(label)
+            data = self.basic_transforms(image = data_concat)['image']
 
             return data, label
             
         else: # for test dataset
+            files_names = os.listdir(self.data_path)
             # load data
-            patient_data = self.data[index][0]
+            data = Image.open(os.path.join(self.data_path, files_names[index])).convert("RGB")
             # data augmentation
-            transformed_patient_data = np.squeeze(self.transforms(np.expand_dims(patient_data), 0))
+            transformed_data = self.additional_transforms_2d(image = data)['image']
+
+            # concat in channel dimension
+            if len(data.shape) == 2:
+                data = np.concatenate([data[None,:], transformed_data['image'][None, :]], axis=0)
+            else:
+                data = np.concatenate([data, transformed_data['image']], axis=0)
+
             # concat
-            data = np.concatenate([patient_data, transformed_patient_data], axis=len(patient_data.shape)-3)
             data = self.basic_transforms(image = data)['image']
             return data
-
-
-        
-
-
-    
