@@ -27,7 +27,8 @@ def create(conf, local_rank, world_size, mode='train'):
             pin_memory=True,
             drop_last=conf[mode]['drop_last'],
             num_workers=0,
-            sampler=sampler
+            sampler=sampler,
+            collate_fn=lambda x: tuple(zip(*x))
         )
     elif conf[mode]['name'] == 'mnist':
         if mode == 'train':

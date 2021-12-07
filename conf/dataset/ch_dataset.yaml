@@ -1,27 +1,28 @@
 train:
   name : 'dataset'
-  dataset_path : '/home/ddl/git/template/dataset/cell_dataset/train'
-  label_path : '/home/ddl/git/template/dataset/cell_dataset/train.csv'
-  submission_path : '/home/ddl/git/template/dataset/cell_dataset/sample_submission.csv'
+  dataset_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/train'
+  label_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/train.csv'
+  submission_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/sample_submission.csv'
   drop_last : True
 
 
 test:
   name : 'dataset'
-  dataset_path : '/home/ddl/git/template/dataset/cell_dataset/test'
-  submission_path : '/home/ddl/git/template/dataset/cell_dataset/sample_submission.csv'
+  dataset_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/test'
+  submission_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/sample_submission.csv'
   drop_last : True
+
 
 #train:
 #  name : 'dataset'
-#  dataset_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/train'
-#  label_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/train.csv'
-#  submission_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/sample_submission.csv'
+#  dataset_path : '/home/ddl/git/template/dataset/cell_dataset/train'
+#  label_path : '/home/ddl/git/template/dataset/cell_dataset/train.csv'
+#  submission_path : '/home/ddl/git/template/dataset/cell_dataset/sample_submission.csv'
 #  drop_last : True
 
 
 #test:
 #  name : 'dataset'
-#  dataset_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/test'
-#  submission_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/sample_submission.csv'
+#  dataset_path : '/home/ddl/git/template/dataset/cell_dataset/test'
+#  submission_path : '/home/ddl/git/template/dataset/cell_dataset/sample_submission.csv'
 #  drop_last : True

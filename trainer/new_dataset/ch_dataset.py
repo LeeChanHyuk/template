@@ -21,19 +21,35 @@ class ch_dataset(torch.utils.data.Dataset):
         self.conf = conf[mode]
         self.mode = mode
         self.data_path = self.conf['dataset_path']
-        self.basic_transforms = ToTensorV2()
+        self.test_transforms = A.Compose([A.Resize(height,width),
+            ToTensorV2()
+        ], bbox_params=A.BboxParams(format='coco', label_fields=['bbox_classes']))
         self.image_info = collections.defaultdict(dict)
         if self.mode == 'train':
             self.label_path = self.conf['label_path']
-            self.additional_transforms_2d = A.Compose([
+            self.train_transformation = A.Compose([
                 A.VerticalFlip(),
                 A.HorizontalFlip(), # normalize
-            ])
+                A.Resize(height,width),
+                ToTensorV2()
+            ], bbox_params=A.BboxParams(format='coco', label_fields=['bbox_classes']))
             self.label = self.get_label()
         self.length = len(os.listdir(self.data_path)) # + data_augmentation (not applied)
         self.width = width
         self.height = height
-        self.should_resize = False
+
+    def label_transformation(self, image, label, horizontal_flip = False, vertical_flip = False, resize = False):
+        if horizontal_flip:
+            height, width = image.shape[-2:]
+            label["masks"] = label["masks"].flip(-1)
+        if vertical_flip:
+            height, width = image.shape[-2:]
+            image = image.flip(-2)
+            label["masks"] = label["masks"].flip(-2)
+        
+            
+        return label
+
 
     def get_label(self):
         csv_file = pd.read_csv(self.conf['label_path'])
@@ -68,10 +84,24 @@ class ch_dataset(torch.utils.data.Dataset):
     def get_box(self, a_mask):
         ''' Get the bounding box of a given mask '''
         pos = np.where(a_mask)
+        width = a_mask.shape[0]
+        height = a_mask.shape[1]
         xmin = np.min(pos[1])
         xmax = np.max(pos[1])
         ymin = np.min(pos[0])
         ymax = np.max(pos[0])
+        if xmin> width:
+            xmin = width
+            print('xmin error')
+        if xmax>width:
+            xmax = width
+            print('xmax error')
+        if ymin>height:
+            ymin = height
+            print('ymin error')
+        if ymax>height:
+            ymax = height
+            print('ymax error')
         return [xmin, ymin, xmax, ymax]
 
     # data augmentation is conducted in here because of probability of augmentation method
@@ -81,14 +111,11 @@ class ch_dataset(torch.utils.data.Dataset):
             img_path = self.image_info[index]["image_path"]
             data = np.array(Image.open(img_path).convert("RGB"))
 
-            # data augmentation # must solve normalize issue!
-            transformed_data = self.additional_transforms_2d(image=data)
-
             # concat in channel dimension
-            if len(data.shape) == 2:
-                data_concat = np.concatenate([data[None,:], transformed_data['image'][None, :]], axis=0)
-            else:
-                data_concat = np.concatenate([data, transformed_data['image']], axis=0)
+            #if len(data.shape) == 2:
+            #    data_concat = np.concatenate([data[:, None], transformed_data['image'][:, None]], axis=0)
+            #else:
+            #    data_concat = np.concatenate([data, transformed_data['image']], axis=2)
 
             # masks
             info = self.image_info[index]
@@ -98,27 +125,24 @@ class ch_dataset(torch.utils.data.Dataset):
 
 
             n_objects = len(info['annotations'])
-            masks = np.zeros((len(info['annotations']), data.shape[1], data.shape[0]), dtype=np.uint8)
+            masks = np.zeros((data.shape[0], data.shape[1], len(info['annotations'])), dtype=np.uint8)
             boxes = []
         
             for i, annotation in enumerate(info['annotations']):
-                a_mask = self.rle_decode(annotation, (data.shape[1], data.shape[0]))
+                a_mask = self.rle_decode(annotation, (data.shape[0], data.shape[1])) # 이거 두 개가 바뀌어야 하는건가?
                 a_mask = Image.fromarray(a_mask)
             
-            if self.should_resize:
-                a_mask = a_mask.resize((self.width, self.height), resample=Image.BILINEAR)
-            
-            a_mask = np.array(a_mask) > 0
-            masks[i, :, :] = a_mask
-            
-            boxes.append(self.get_box(a_mask))
+                a_mask = np.array(a_mask) > 0
+                masks[:, :, i] = a_mask
+                
+                boxes.append(self.get_box(a_mask))
 
             # dummy labels
             labels = [1 for _ in range(n_objects)]
             
-            boxes = torch.as_tensor(boxes, dtype=torch.float32)
-            labels = torch.as_tensor(labels, dtype=torch.int64)
-            masks = torch.as_tensor(masks, dtype=torch.uint8)
+            #boxes = torch.as_tensor(boxes, dtype=torch.float32)
+            #labels = torch.as_tensor(labels, dtype=torch.int64)
+            #masks = torch.as_tensor(masks, dtype=torch.uint8)
 
             image_id = torch.tensor([index])
             area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
@@ -134,8 +158,10 @@ class ch_dataset(torch.utils.data.Dataset):
                 'iscrowd': iscrowd
             }
                 
+            print(label)
             # basic transformation
-            data = self.basic_transforms(image = data_concat)['image']
+            transformed_data= self.train_transformation(image = data, bboxes = label['boxes'], mask = label['masks'], bbox_classes=label['labels'])
+            label['masks'], label['boxes'], label['labels'] =  transformed_data['masks'], transformed_data['bboxes'], transformed_data['bbox_classes']
 
             return data, label
             
@@ -153,5 +179,5 @@ class ch_dataset(torch.utils.data.Dataset):
                 data = np.concatenate([data, transformed_data['image']], axis=0)
 
             # concat
-            data = self.basic_transforms(image = data)['image']
+            data = self.test_transforms(image = data)['image']
             return data
