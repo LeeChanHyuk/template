@@ -1,0 +1,23 @@
+type: unet/normal
+seed          : 101
+debug         : False # set debug=False for Full Training
+exp_name      : 'Unet-effnetb2-512x512-aug2'
+model_name    : 'Unet'
+backbone      : 'efficientnet-b2'
+train_bs      : 24
+valid_bs      : 48
+img_size      : [512, 512]
+epochs        : 50
+lr            : 5e-3
+scheduler     : 'CosineAnnealingLR'
+min_lr        : 1e-6
+T_max         : 100*6*1.8
+T_0           : 25
+warmup_epochs : 0
+wd            : 1e-6
+n_accumulate  : 32//train_bs
+n_fold        : 5
+num_classes   : 1
+device        : torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+competition   : 'sartorius'
+_wandb_kernel : 'awsaf49'

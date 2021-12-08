@@ -7,6 +7,7 @@ LOGGER = logging.getLogger(__name__)
 from efficientnet_pytorch import EfficientNet
 # from .efficientv2 import EffNetV2
 from timm.models import create_model
+import segmentation_models_pytorch as smp
 def create(conf, num_classes=None):
     base, architecture_name = [l.lower() for l in conf['type'].split('/')]
     print('model = ',base,architecture_name)
@@ -44,6 +45,14 @@ def create(conf, num_classes=None):
         architecture.conv1 = nn.Conv2d(64, 64, kernel_size=7, stride=2, padding=3,
                             bias=False)
         architecture.fc = nn.Linear(2048,1)
+    elif base == 'unet':
+        architecture = smp.Unet(
+        encoder_name=conf['backbone'],      # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
+        encoder_weights="imagenet",     # use `imagenet` pre-trained weights for encoder initialization
+        in_channels=3,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
+        classes=conf['num_classes'],        # model output channels (number of classes in your dataset)
+        activation=None,
+    )
     else:
         raise AttributeError(f'not support architecture config: {conf}')
 

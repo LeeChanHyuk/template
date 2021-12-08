@@ -34,6 +34,13 @@ class ch_dataset(torch.utils.data.Dataset):
                 ToTensorV2()
             ], bbox_params=A.BboxParams(format='coco', label_fields=['bbox_classes']))
             self.label = self.get_label()
+        elif self.mode == 'valid':
+            self.label_path = self.conf['label_path']
+            self.train_transformation = A.Compose([
+                A.Resize(height,width),
+                ToTensorV2()
+            ], bbox_params=A.BboxParams(format='coco', label_fields=['bbox_classes']))
+            self.label = self.get_label()
         self.length = len(os.listdir(self.data_path)) # + data_augmentation (not applied)
         self.width = width
         self.height = height
@@ -84,8 +91,8 @@ class ch_dataset(torch.utils.data.Dataset):
     def get_box(self, a_mask):
         ''' Get the bounding box of a given mask '''
         pos = np.where(a_mask)
-        width = a_mask.shape[0]
-        height = a_mask.shape[1]
+        width = a_mask.shape[1]
+        height = a_mask.shape[0]
         xmin = np.min(pos[1])
         xmax = np.max(pos[1])
         ymin = np.min(pos[0])
@@ -102,7 +109,9 @@ class ch_dataset(torch.utils.data.Dataset):
         if ymax>height:
             ymax = height
             print('ymax error')
-        return [xmin, ymin, xmax, ymax]
+        mask_width = xmax - xmin
+        mask_height = ymax- ymin
+        return [xmin, ymin, mask_width, mask_height]
 
     # data augmentation is conducted in here because of probability of augmentation method
     def __getitem__(self, index):
@@ -128,15 +137,16 @@ class ch_dataset(torch.utils.data.Dataset):
             masks = np.zeros((data.shape[0], data.shape[1], len(info['annotations'])), dtype=np.uint8)
             boxes = []
         
+            whole_mask = np.zeros((data.shape[0], data.shape[1])) # for semantic segmentation
             for i, annotation in enumerate(info['annotations']):
                 a_mask = self.rle_decode(annotation, (data.shape[0], data.shape[1])) # 이거 두 개가 바뀌어야 하는건가?
                 a_mask = Image.fromarray(a_mask)
-            
+                whole_mask += a_mask
                 a_mask = np.array(a_mask) > 0
                 masks[:, :, i] = a_mask
                 
                 boxes.append(self.get_box(a_mask))
-
+            whole_mask[whole_mask>0] = 1
             # dummy labels
             labels = [1 for _ in range(n_objects)]
             
@@ -145,6 +155,7 @@ class ch_dataset(torch.utils.data.Dataset):
             #masks = torch.as_tensor(masks, dtype=torch.uint8)
 
             image_id = torch.tensor([index])
+            boxes = np.array(boxes)
             area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
             iscrowd = torch.zeros((n_objects,), dtype=torch.int64)
 
@@ -158,12 +169,12 @@ class ch_dataset(torch.utils.data.Dataset):
                 'iscrowd': iscrowd
             }
                 
-            print(label)
+            print(boxes)
             # basic transformation
-            transformed_data= self.train_transformation(image = data, bboxes = label['boxes'], mask = label['masks'], bbox_classes=label['labels'])
-            label['masks'], label['boxes'], label['labels'] =  transformed_data['masks'], transformed_data['bboxes'], transformed_data['bbox_classes']
-
-            return data, label
+            transformed_data= self.train_transformation(image = data, bboxes = label['boxes'], mask = whole_mask, bbox_classes=label['labels'])
+            data, label['masks'], label['boxes'], label['labels'] =  transformed_data['image'], transformed_data['mask'], transformed_data['bboxes'], transformed_data['bbox_classes']
+            mask_label = label['masks']
+            return data, mask_label
             
         else: # for test dataset
             files_names = os.listdir(self.data_path)

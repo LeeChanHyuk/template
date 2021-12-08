@@ -167,6 +167,8 @@ class Trainer():
         prediclist = []
         labellist = []
         for step, (image, label) in pbar:
+            image= torch.stack(image)
+            label= torch.stack(label)
             image = image.to(device=self.rank, non_blocking=True).float()
             label = label.to(device=self.rank, non_blocking=True).float()
             with self.amp_autocast():

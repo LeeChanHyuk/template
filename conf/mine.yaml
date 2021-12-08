@@ -1,8 +1,8 @@
 defaults:
   - log : tensorboard
-  - architecture: efficientv2
+  - architecture: unet
   - dataset: ch_dataset
-  - loss: ce
+  - loss: jaccard
   - optimizer: adam
   - hyperparameter: toy
   - scheduler: CosineAnnealingLR
