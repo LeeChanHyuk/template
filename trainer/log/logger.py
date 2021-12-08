@@ -95,7 +95,6 @@ class Logger(object):
         if image.ndim == 4: # batch 2d image
            
             image = image[samplenum][:,None]
-            print(image.shape,'123123123')
             self.writer.add_images(f'{tag}/image',image[:10],step,dataformats='NCHW')
             self.writer.add_images(f'{tag}/image',image,step,dataformats='NCHW')
         if image.ndim == 5: # batch 3d image

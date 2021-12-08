@@ -146,6 +146,14 @@ class Trainer():
         else:
             model.load_state_dict({k if 'module.' in k else 'module.'+k: v for k, v in data[key].items()})
         return model
+    
+    def evaluation_for_segmentation(self, y_preds, labels, thresh=0.5):
+        y_preds = y_preds.detach().cpu().numpy()
+        labels = labels.detach().cpu().numpy()
+        for y_pred, label in zip(y_preds, labels):
+            y_pred[y_pred > thresh] = 1
+            y_pred[y_pred <= thresh] = 0
+            
 
     def train_one_epoch(self, epoch, model, dl, criterion, optimizer,logger):
         # for step, (image, label) in tqdm(enumerate(dl), total=len(dl), desc="[Train] |{:3d}e".format(epoch), disable=not flags.is_master):
@@ -303,8 +311,8 @@ class Trainer():
         torch.cuda.synchronize()
 
         # add graph to tensorboard
-        if logger is not None:
-            logger.update_graph(model, torch.rand((1,1,28,28)).float())
+        #if logger is not None:
+            #logger.update_graph(model, torch.rand((1,1,28,28)).float())
 
         # load checkpoint
         if self.conf.base.resume == True:
