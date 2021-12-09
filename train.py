@@ -24,7 +24,7 @@ from omegaconf import DictConfig, OmegaConf
 
 import trainer
 
-from tqdm import tqdm 
+from tqdm import tnrange, tqdm 
 from sklearn.metrics import roc_auc_score
 from sklearn import metrics
 from sklearn.metrics import precision_score, accuracy_score
@@ -147,23 +147,49 @@ class Trainer():
             model.load_state_dict({k if 'module.' in k else 'module.'+k: v for k, v in data[key].items()})
         return model
     
-    def evaluation_for_segmentation(self, y_preds, labels, thresh=0.5):
+    def evaluation_for_semantic_segmentation(self, y_preds, labels, thresh=0.5):
         y_preds = y_preds.detach().cpu().numpy()
         labels = labels.detach().cpu().numpy()
+        accuracies = []
+        precisions = []
+        recalls = []
         for y_pred, label in zip(y_preds, labels):
+            # thresholding
             y_pred[y_pred > thresh] = 1
             y_pred[y_pred <= thresh] = 0
-            
+            # label distinction
+            label_1 = (label == 1)
+            label_0 = (label == 0)
+            # TP, TN, FP, FN
+            TP = np.sum((y_pred == 1) * (label == 1)) 
+            TN = np.sum((y_pred == 0) * (label == 0))
+            FP = np.sum((y_pred == 1) * (label == 0))
+            FN = np.sum((y_pred == 0) * (label == 1))
+            # Calculate
+            accuracy = (TP + TN) / (TP + TN + FP + FN)
+            precision = TP / (TP + FP)
+            recall = (TP) / (TP + FN)
+            # save
+            accuracies.append(accuracy)
+            precisions.append(precision)
+            recalls.append(recall)
+        return accuracies, precisions, recalls
 
     def train_one_epoch(self, epoch, model, dl, criterion, optimizer,logger):
         # for step, (image, label) in tqdm(enumerate(dl), total=len(dl), desc="[Train] |{:3d}e".format(epoch), disable=not flags.is_master):
         train_hit = 0
         train_total = 0
         one_epoch_loss = 0
-        # 0: train_loss, 1: train_hit, 2: train_total, 3: len(dl)
-        counter = torch.zeros((4, ), device=self.rank)
+        # eval_result = [accuracy, precision, recall, loss, image_num]
+        t_acc = torch.zeros(1)
+        t_recall = torch.zeros(1)
+        t_precision = torch.zeros(1)
+        t_loss = torch.zeros(1)
+        t_imgnum = torch.zeros(1)
+
         #torch.set_default_tensor_type(torch.cuda.LONG)
         model.train()
+        
         pbar = tqdm(
             enumerate(dl), 
             bar_format='{desc:<15}{percentage:3.0f}%|{bar:18}{r_bar}', 
@@ -172,8 +198,6 @@ class Trainer():
             disable=not self.is_master
             )
         current_step = epoch
-        prediclist = []
-        labellist = []
         for step, (image, label) in pbar:
             image= torch.stack(image)
             label= torch.stack(label)
@@ -195,30 +219,22 @@ class Trainer():
                 self.scaler.scale(loss).backward()
                 self.scaler.step(optimizer)
                 self.scaler.update()
-
-            counter[0] += loss.item()
-            # _, y_pred = y_pred.unsqueeze(0).max(1)
-            y_pred = torch.argmax(y_pred, dim=1)
-            counter[1] += y_pred.detach().eq(label).sum()
-            counter[2] += image.shape[0]
-            
-            prediclist.append(y_pred.detach().cpu().numpy())
-            labellist.append(label.cpu().numpy())
+            accuracies, precisions, recalls = self.evaluation_for_semantic_segmentation(y_pred, label)
+            for i in range(image[0]):
+                t_acc += accuracies[i]
+                t_recall += recalls[i]
+                t_precision += precisions[i]
+            t_imgnum += image[0]
+            t_loss += loss
             if step % 100 == 0:
-                pbar.set_postfix({'train_Acc':accuracy_score(label.cpu().numpy(),y_pred.detach().cpu().numpy()>0.6),'train_Loss':round(loss.item(),2)}) 
+                pbar.set_postfix({'train_Acc':mean_accuracy,'train_Loss':round(loss.item(),2)}) 
 
         counter[3] += len(dl)
         torch.distributed.reduce(counter, 0)
         if self.is_master:
             counter = counter.detach().cpu().numpy()
-            labellist = np.array(list(itertools.chain(*labellist)))
-            prediclist = np.array(list(itertools.chain(*prediclist)))
-            fpr,tpr,thresholds  = metrics.roc_curve(labellist,prediclist,pos_label=1)
-
-            prescore = precision_score(labellist,prediclist > 0.6)
-            acccore = accuracy_score(labellist,prediclist > 0.6)
-            # print(f'[Train_{epoch}] Acc: {train_hit / train_total} Loss: {one_epoch_loss / len(dl)}')
-            metric = {'AUROC':metrics.auc(fpr, tpr),'Acc': acccore,'pre':prescore, 'Loss': counter[0] / counter[3],'optimizer':optimizer}
+            accuracy
+            metric = {'Acc': ,'pre':prescore, 'Loss': counter[0] / counter[3],'optimizer':optimizer}
             logger.update_log(metric,current_step,'train') # update logger step
             logger.update_histogram(model,current_step,'train') # update weight histogram 
             logger.update_image(image,current_step,'train') # update transpose image
