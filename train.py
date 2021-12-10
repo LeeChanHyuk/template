@@ -42,7 +42,6 @@ class Trainer():
         torch.backends.cudnn.benchmark = True
         torch.cuda.set_device(self.rank)
 
-
         # mixed precision
         self.amp_autocast = suppress
         if self.conf.base.use_amp is True:
@@ -61,9 +60,6 @@ class Trainer():
         if self.conf.scheduler.params.get('T_max', None) is None:
             self.conf.scheduler.params.T_max = self.conf.hyperparameter.epochs
         
-        # warmup Scheduler
-        # if self.conf.scheduler.warmup.get('status', False) is True:
-        #     self.conf.scheduler.warmup.params.total_epoch = self.conf.hyperparameter.epochs
         self.start_epoch = 1
     def build_looger(self, is_use:bool):
         if is_use == True: 
@@ -91,25 +87,6 @@ class Trainer():
     # TODO: modulizaing
     def build_dataloader(self, ):
 
-        """train_loader, train_sampler, channel_length = trainer.dataset.create(
-            self.conf.dataset,
-            world_size=self.conf.base.world_size,
-            local_rank=self.rank,
-            mode='train'
-        )
-        valid_loader, valid_sampler, channel_length = trainer.dataset.create(
-            self.conf.dataset,
-            world_size=self.conf.base.world_size,
-            local_rank=self.rank,
-            mode='valid'
-        )
-
-        test_loader, test_sampler, channel_length = trainer.dataset.create(
-            self.conf.dataset,
-            world_size=self.conf.base.world_size,
-            local_rank=self.rank,
-            mode='train'
-        )"""
         train_loader, train_sampler = trainer.new_dataset.create(conf = self.conf.dataset,
         world_size=self.conf.base.world_size,
         local_rank=self.rank,
@@ -118,15 +95,14 @@ class Trainer():
         valid_loader, valid_sampler = trainer.new_dataset.create(conf = self.conf.dataset,
         world_size=self.conf.base.world_size,
         local_rank=self.rank,
-        mode = 'train')
+        mode = 'valid')
 
         test_loader, test_sampler = trainer.new_dataset.create(conf = self.conf.dataset,
         world_size=self.conf.base.world_size,
         local_rank=self.rank,
         mode = 'test')
 
-
-        return train_loader, train_sampler, test_loader, test_sampler
+        return train_loader, train_sampler, valid_loader, valid_sampler, test_loader, test_sampler
 
     def build_loss(self):
         criterion = trainer.loss.create(self.conf.loss, self.rank)
@@ -201,8 +177,8 @@ class Trainer():
             )
         current_step = epoch
         for step, (image, label) in pbar:
-            image= torch.stack(image)
-            label= torch.stack(label)
+            #image= torch.stack(image)
+            #label= torch.stack(label)
             image = image.to(device=self.rank, non_blocking=True).float()
             label = label.to(device=self.rank, non_blocking=True).float()
             with self.amp_autocast():
@@ -275,8 +251,8 @@ class Trainer():
 
         for step, (image, label) in pbar:
             # current_step = epoch*len(dl)+step
-            image= torch.stack(image)
-            label= torch.stack(label)
+            #image= torch.stack(image)
+            #label= torch.stack(label)
             image = image.to(device=self.rank, non_blocking=True).float()
             label = label.to(device=self.rank, non_blocking=True).float()
             #seg_array = seg_array.to(device=self.rank, non_blocking=True).float()
@@ -301,7 +277,7 @@ class Trainer():
             temp_imgnum += image.shape[0]
             t_loss += loss.item()
             if step % 100 == 0:
-                pbar.set_postfix({'train_Acc':temp_acc / temp_imgnum,'train_Loss':round(loss.item(),2)}) 
+                pbar.set_postfix({'Valid_Acc':temp_acc / temp_imgnum,'Valid_Loss':round(loss.item(),2)}) 
         counter[3] += len(dl)
         torch.distributed.reduce(counter, 0)
         if self.is_master:
@@ -315,7 +291,7 @@ class Trainer():
             #logger.update_metric()
             self.writer.flush()
             
-        return counter[0] / counter[3], counter[1] / counter[2]
+        return t_loss / t_imgnum, t_acc / t_imgnum
 
     def train_eval(self):
         model = self.build_model()
@@ -323,7 +299,7 @@ class Trainer():
         optimizer = self.build_optimizer(model)
 
         scheduler = self.build_scheduler(optimizer)
-        train_dl, train_sampler,test_dl, test_sampler= self.build_dataloader()
+        train_dl, train_sampler,valid_dl, valid_sampler, test_dl, test_sampler= self.build_dataloader()
 
         logger = self.build_looger(is_use=self.is_master)
         saver = self.build_saver(model, optimizer, self.scaler)
@@ -357,7 +333,7 @@ class Trainer():
             saver.save_checkpoint(epoch=epoch, model=model, loss=train_loss, rank=self.rank, metric=valid_acc)
 
             if self.is_master:
-                print(f'Epoch {epoch}/{self.conf.hyperparameter.epochs} - train_Acc: {train_acc:.3f}, train_Loss: {train_loss:.3f}, valid_Acc: {valid_acc:.3f}, valid_Loss: {valid_loss:.3f}')
+                print(f'Epoch {epoch}/{self.conf.hyperparameter.epochs} - train_Acc: {train_acc[0]:.3f}, train_Loss: {train_loss[0]:.3f}, valid_Acc: {valid_acc[0]:.3f}, valid_Loss: {valid_loss[0]:.3f}')
 
     def run(self):
         if self.conf.base.mode == 'train':
@@ -407,4 +383,5 @@ def main(conf: DictConfig) -> None:
 
 if __name__ == '__main__':
     main()
+
 

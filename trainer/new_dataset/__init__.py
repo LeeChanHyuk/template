@@ -9,53 +9,51 @@ import torch.utils.data
 import torch
 import torchvision
 import torchvision.transforms as transforms
+from torch.utils.data.dataset import random_split
 
 def create(conf, local_rank, world_size, mode='train'):
 
     if conf[mode]['name'] == 'dataset':
-        dataset = ch_dataset(conf, mode)
-        sampler = torch.utils.data.distributed.DistributedSampler(
-                dataset, 
-                num_replicas=world_size, 
-                rank=local_rank,
-                shuffle=(mode == 'train')
-            )
-        dataloader = torch.utils.data.DataLoader(
-            dataset,
-            batch_size=4,
-            shuffle=False,
-            pin_memory=True,
-            drop_last=conf[mode]['drop_last'],
-            num_workers=0,
-            sampler=sampler,
-            collate_fn=lambda x: tuple(zip(*x))
-        )
+        if mode == 'train' or mode == 'valid':
+            dataset = ch_dataset(conf, mode)
+            length = len(dataset)
+            train_length = int(length * 0.8)
+            valid_length = length - train_length
+            train_dataset, valid_dataset = random_split(dataset, [train_length, valid_length])
+            if mode == 'train':
+                temp_dataset = train_dataset
+            elif mode == 'valid':
+                temp_dataset = valid_dataset
+        else:
+            dataset = ch_dataset(conf, mode)
+            temp_dataset = dataset
+                
     elif conf[mode]['name'] == 'mnist':
         if mode == 'train':
-            dataset = torchvision.datasets.MNIST(root='MNIST_data/',
+            temp_dataset = torchvision.datasets.MNIST(root='MNIST_data/',
             train=True,
             transform=transforms .ToTensor(),
             download=True)
         else:
-            dataset = torchvision.datasets.MNIST(root='MNIST_data/',
+            temp_dataset = torchvision.datasets.MNIST(root='MNIST_data/',
             train=False,
             transform=transforms.ToTensor(),
             download=True)
         
-        sampler = torch.utils.data.distributed.DistributedSampler(
-                dataset, 
-                num_replicas=world_size, 
-                rank=local_rank,
-                shuffle=(mode == 'train')
-            )
-        dataloader = torch.utils.data.DataLoader(
-            dataset,
-            batch_size=4,
-            shuffle=False,
-            pin_memory=True,
-            drop_last=conf[mode]['drop_last'],
-            num_workers=0,
-            sampler=sampler
+    sampler = torch.utils.data.distributed.DistributedSampler(
+            temp_dataset, 
+            num_replicas=world_size, 
+            rank=local_rank,
+            shuffle=(mode == 'train')
         )
+    dataloader = torch.utils.data.DataLoader(
+        temp_dataset,
+        batch_size=16,
+        shuffle=False,
+        pin_memory=True,
+        drop_last=conf[mode]['drop_last'],
+        num_workers=0,
+        sampler=sampler
+    )
 
     return dataloader, sampler

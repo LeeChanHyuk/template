@@ -115,7 +115,7 @@ class ch_dataset(torch.utils.data.Dataset):
 
     # data augmentation is conducted in here because of probability of augmentation method
     def __getitem__(self, index):
-        if self.mode == 'train':
+        if self.mode == 'train' or self.mode == 'valid':
             # load data  
             img_path = self.image_info[index]["image_path"]
             data = np.array(Image.open(img_path).convert("RGB"))
