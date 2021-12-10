@@ -15,6 +15,7 @@ import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.nn import DataParallel
 import torch.nn.functional as F
+from torch.utils.tensorboard.writer import SummaryWriter
 
 import torchvision
 import torchvision.transforms as transforms
@@ -34,6 +35,7 @@ class Trainer():
         self.conf = copy.deepcopy(conf)
         self.rank = rank
         self.is_master = True if rank == 0 else False
+        self.writer = SummaryWriter()
         self.set_env()
         
     def set_env(self):
@@ -73,7 +75,7 @@ class Trainer():
     def build_model(self, num_classes=-1):
         model = trainer.architecture.create(self.conf.architecture)
         model = model.to(device=self.rank, non_blocking=True)
-        model = DDP(model, device_ids=[self.rank], output_device=self.rank)
+        model = DDP(model, device_ids=[self.rank], output_device=self.rank, find_unused_parameters=True)
 
         return model
 
@@ -181,11 +183,11 @@ class Trainer():
         train_total = 0
         one_epoch_loss = 0
         # eval_result = [accuracy, precision, recall, loss, image_num]
-        t_acc = torch.zeros(1)
-        t_recall = torch.zeros(1)
-        t_precision = torch.zeros(1)
-        t_loss = torch.zeros(1)
-        t_imgnum = torch.zeros(1)
+        t_acc = np.zeros(1)
+        t_recall = np.zeros(1)
+        t_precision = np.zeros(1)
+        t_loss = np.zeros(1)
+        t_imgnum = np.zeros(1)
 
         #torch.set_default_tensor_type(torch.cuda.LONG)
         model.train()
@@ -220,27 +222,36 @@ class Trainer():
                 self.scaler.step(optimizer)
                 self.scaler.update()
             accuracies, precisions, recalls = self.evaluation_for_semantic_segmentation(y_pred, label)
-            for i in range(image[0]):
+            temp_acc, temp_recall, temp_precision, temp_imgnum = np.zeros(1), np.zeros(1), np.zeros(1), np.zeros(1)
+            for i in range(image.shape[0]):
+                temp_acc += accuracies[i]
+                temp_recall += recalls[i]
+                temp_precision += precisions[i]
                 t_acc += accuracies[i]
                 t_recall += recalls[i]
                 t_precision += precisions[i]
-            t_imgnum += image[0]
-            t_loss += loss
+            t_imgnum += image.shape[0]
+            t_loss += loss.item()
+            temp_imgnum += image.shape[0]
+            t_loss += loss.item()
             if step % 100 == 0:
-                pbar.set_postfix({'train_Acc':mean_accuracy,'train_Loss':round(loss.item(),2)}) 
-
-        counter[3] += len(dl)
-        torch.distributed.reduce(counter, 0)
+                pbar.set_postfix({'train_Acc':temp_acc / temp_imgnum,'train_Loss':round(loss.item(),2)}) 
+        
+        #torch.distributed.reduce(counter, 0)
         if self.is_master:
-            counter = counter.detach().cpu().numpy()
-            accuracy
-            metric = {'Acc': ,'pre':prescore, 'Loss': counter[0] / counter[3],'optimizer':optimizer}
-            logger.update_log(metric,current_step,'train') # update logger step
-            logger.update_histogram(model,current_step,'train') # update weight histogram 
-            logger.update_image(image,current_step,'train') # update transpose image
-            logger.update_metric(labellist,prediclist,current_step,'train')
+            #counter = counter.detach().cpu().numpy()
+            metric = {'Acc': t_acc / t_imgnum,'pre': t_precision / t_imgnum, 'recall':t_recall/t_imgnum, 'Loss': t_loss / t_imgnum,'optimizer':optimizer}
+            self.writer.add_scalar("Loss/train", t_loss / t_imgnum, epoch)
+            self.writer.add_scalar("ACC/train", t_acc / t_imgnum, epoch)
+            self.writer.add_scalar("Recall/train", t_recall / t_imgnum, epoch)
+            self.writer.add_scalar("Precision/train", t_precision / t_imgnum, epoch)
+            #logger.update_log(metric,current_step,'train') # update logger step
+            #logger.update_histogram(model,current_step,'train') # update weight histogram 
+            #logger.update_image(image,current_step,'train') # update transpose image
+            #logger.update_metric()
+            self.writer.flush()
         # return loss, accuracy
-        return counter[0] / counter[3], counter[1] / counter[2], dl
+        return t_loss / t_imgnum, t_acc / t_imgnum, dl
 
 
     @torch.no_grad()
@@ -256,56 +267,53 @@ class Trainer():
             disable=not self.is_master
             ) # set progress bar
         current_step = epoch
-        prediclist = []
-        labellist = []
+        t_acc = np.zeros(1)
+        t_recall = np.zeros(1)
+        t_precision = np.zeros(1)
+        t_loss = np.zeros(1)
+        t_imgnum = np.zeros(1)
 
         for step, (image, label) in pbar:
             # current_step = epoch*len(dl)+step
-            
+            image= torch.stack(image)
+            label= torch.stack(label)
             image = image.to(device=self.rank, non_blocking=True).float()
             label = label.to(device=self.rank, non_blocking=True).float()
             #seg_array = seg_array.to(device=self.rank, non_blocking=True).float()
             with self.amp_autocast():
-                #input = torch.cat((image, seg_array),1)
                 input = image
                 y_pred = model(input).squeeze()
+                #y_pred = torch.argmax(y_pred, dim=1)[None,:]
+                #label = F.one_hot(label.to(torch.int64), num_classes=10)
+                label = label.to(torch.int64)
                 loss = criterion(y_pred, label).float()
-            counter[0] += loss.item()
-            # _, y_pred = y_pred.unsqueeze(0).max(1)
-            y_pred_copy = torch.tensor(y_pred)
-            if self.conf.loss.type == 'bce':
-                y_pred_copy = torch.round(torch.sigmoid(y_pred_copy))
-            else:
-                _, y_pred_copy = y_pred_copy.max(1)
-                # one_hot encoding
-                if len(list(label.shape)) > 2:
-                    _, label = label.max(1)
-            counter[1] += y_pred_copy.detach().eq(label).sum()
-            counter[2] += image.shape[0]
-            prediclist.append(y_pred.detach().cpu().numpy())
-            labellist.append(label.cpu().numpy())
-
+            accuracies, precisions, recalls = self.evaluation_for_semantic_segmentation(y_pred, label)
+            temp_acc, temp_recall, temp_precision, temp_imgnum = np.zeros(1), np.zeros(1), np.zeros(1), np.zeros(1)
+            for i in range(image.shape[0]):
+                temp_acc += accuracies[i]
+                temp_recall += recalls[i]
+                temp_precision += precisions[i]
+                t_acc += accuracies[i]
+                t_recall += recalls[i]
+                t_precision += precisions[i]
+            t_imgnum += image.shape[0]
+            t_loss += loss.item()
+            temp_imgnum += image.shape[0]
+            t_loss += loss.item()
             if step % 100 == 0:
-                pbar.set_postfix({'valid_Acc':accuracy_score(label.cpu().numpy(),y_pred.detach().cpu().numpy()>0.6),'valid_Loss': round(loss.item(), 2)}) 
+                pbar.set_postfix({'train_Acc':temp_acc / temp_imgnum,'train_Loss':round(loss.item(),2)}) 
         counter[3] += len(dl)
         torch.distributed.reduce(counter, 0)
         if self.is_master:
-            counter = counter.detach().cpu().numpy()
-            labellist = np.array(list(itertools.chain(*labellist)))
-            prediclist = np.array(list(itertools.chain(*prediclist)))
-            fpr,tpr,thresholds  = metrics.roc_curve(labellist,prediclist,pos_label=1)
-            prescore = precision_score(labellist,prediclist > 0.6)
-            acccore = accuracy_score(labellist,prediclist>0.6)
-
-            # print(f'[Val_{epoch}] Acc: {counter[1] / counter[2]} Loss: {counter[0] / counter[3]}')
-            # metric = {'Acc':counter[1] / counter[2], 'Loss': counter[0] / counter[3]}
-            metric = {'AUROC':metrics.auc(fpr, tpr),'Acc': acccore,'pre':prescore, 'Loss': counter[0] / counter[3]}
-            logger.update_log(metric,current_step,'valid') # update logger step
-            logger.update_histogram(model,current_step,'valid') # add image 
-            # logger.update_image(image,current_step,'valid') # update transpose image
-            # y_pred_ = np.array(predic_metric)[:,0].flatten()
-            # label_ = np.array(predic_metric)[:,1].flatten()
-            logger.update_metric(labellist,prediclist,current_step,'valid') # update transpose image
+            self.writer.add_scalar("Loss/valid", t_loss / t_imgnum, epoch)
+            self.writer.add_scalar("ACC/valid", t_acc / t_imgnum, epoch)
+            self.writer.add_scalar("Recall/valid", t_recall / t_imgnum, epoch)
+            self.writer.add_scalar("Precision/valid", t_precision / t_imgnum, epoch)
+            #logger.update_log(metric,current_step,'train') # update logger step
+            #logger.update_histogram(model,current_step,'train') # update weight histogram 
+            #logger.update_image(image,current_step,'train') # update transpose image
+            #logger.update_metric()
+            self.writer.flush()
             
         return counter[0] / counter[3], counter[1] / counter[2]
 

@@ -16,6 +16,7 @@ from sklearn.metrics import roc_auc_score, roc_curve, auc
 import matplotlib.pyplot as plt
 LOGGER = logging.getLogger(__name__)
 
+
 class Logger(object):
     ### save dictionary ###
     def __init__(self, 

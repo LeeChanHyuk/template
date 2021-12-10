@@ -169,7 +169,6 @@ class ch_dataset(torch.utils.data.Dataset):
                 'iscrowd': iscrowd
             }
                 
-            print(boxes)
             # basic transformation
             transformed_data= self.train_transformation(image = data, bboxes = label['boxes'], mask = whole_mask, bbox_classes=label['labels'])
             data, label['masks'], label['boxes'], label['labels'] =  transformed_data['image'], transformed_data['mask'], transformed_data['bboxes'], transformed_data['bbox_classes']
