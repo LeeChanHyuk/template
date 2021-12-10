@@ -16,7 +16,7 @@ from PIL import Image
 import collections
 
 class ch_dataset(torch.utils.data.Dataset):
-    def __init__(self, conf, mode, width=224, height=224) -> None:
+    def __init__(self, conf, mode, width=512, height=512) -> None:
         super().__init__() # 아무것도 안들어있으면 자기 자신을 호출 (왜?)
         self.conf = conf[mode]
         self.mode = mode
@@ -33,15 +33,36 @@ class ch_dataset(torch.utils.data.Dataset):
                 A.Resize(height,width),
                 ToTensorV2()
             ], bbox_params=A.BboxParams(format='coco', label_fields=['bbox_classes']))
-            self.label = self.get_label()
-        elif self.mode == 'valid':
-            self.label_path = self.conf['label_path']
             self.train_transformation = A.Compose([
+        A.Resize(height, width),
+#         A.Normalize(
+#                 mean=[0.485, 0.456, 0.406], 
+#                 std=[0.229, 0.224, 0.225], 
+#                 max_pixel_value=255.0, 
+#                 p=1.0,
+#             ),
+        A.CLAHE(p=0.35),
+        A.ColorJitter(p=0.5),
+        A.HorizontalFlip(p=0.5),
+        A.VerticalFlip(p=0.5),
+        A.ShiftScaleRotate(shift_limit=0.0625, scale_limit=0.1, rotate_limit=90, p=0.5),
+        A.OneOf([
+            A.GridDistortion(num_steps=5, distort_limit=0.05, p=1.0),
+#             A.OpticalDistortion(distort_limit=0.05, shift_limit=0.05, p=1.0),
+            A.ElasticTransform(alpha=1, sigma=50, alpha_affine=50, p=1.0)
+        ], p=0.25),
+        A.CoarseDropout(max_holes=8, max_height=height//20, max_width=width//20,
+                         min_holes=5, fill_value=0, mask_fill_value=0, p=0.5),
+        ToTensorV2()], p=1.0)
+            self.label, self.temp_df = self.get_label()
+        else:
+            self.label_path = self.conf['label_path']
+            self.transformation = A.Compose([
                 A.Resize(height,width),
                 ToTensorV2()
-            ], bbox_params=A.BboxParams(format='coco', label_fields=['bbox_classes']))
-            self.label = self.get_label()
-        self.length = len(os.listdir(self.data_path)) # + data_augmentation (not applied)
+            ])
+            self.label, self.temp_df = self.get_label()
+        self.length = len(self.temp_df) # + data_augmentation (not applied)
         self.width = width
         self.height = height
 
@@ -67,7 +88,7 @@ class ch_dataset(torch.utils.data.Dataset):
                     'image_path': os.path.join(self.data_path, row['id'] + '.png'),
                     'annotations': row["annotation"]
                     }
-        return csv_file
+        return csv_file, temp_df
 
     def rle_decode(self, mask_rle, shape, color=1):
         '''
@@ -115,7 +136,7 @@ class ch_dataset(torch.utils.data.Dataset):
 
     # data augmentation is conducted in here because of probability of augmentation method
     def __getitem__(self, index):
-        if self.mode == 'train' or self.mode == 'valid':
+        if self.mode == 'train':
             # load data  
             img_path = self.image_info[index]["image_path"]
             data = np.array(Image.open(img_path).convert("RGB"))
@@ -170,24 +191,61 @@ class ch_dataset(torch.utils.data.Dataset):
             }
                 
             # basic transformation
-            transformed_data= self.train_transformation(image = data, bboxes = label['boxes'], mask = whole_mask, bbox_classes=label['labels'])
-            data, label['masks'], label['boxes'], label['labels'] =  transformed_data['image'], transformed_data['mask'], transformed_data['bboxes'], transformed_data['bbox_classes']
+            #transformed_data= self.train_transformation(image = data, bboxes = label['boxes'], mask = whole_mask, bbox_classes=label['labels'])
+            #data, label['masks'], label['boxes'], label['labels'] =  transformed_data['image'], transformed_data['mask'], transformed_data['bboxes'], transformed_data['bbox_classes']
+            transformed_data= self.train_transformation(image = data, mask = whole_mask)
+            data, label['masks'] =  transformed_data['image'], transformed_data['mask']
             mask_label = label['masks']
             return data, mask_label
             
         else: # for test dataset
-            files_names = os.listdir(self.data_path)
-            # load data
-            data = Image.open(os.path.join(self.data_path, files_names[index])).convert("RGB")
-            # data augmentation
-            transformed_data = self.additional_transforms_2d(image = data)['image']
+            img_path = self.image_info[index]["image_path"]
+            data = np.array(Image.open(img_path).convert("RGB"))
 
-            # concat in channel dimension
-            if len(data.shape) == 2:
-                data = np.concatenate([data[None,:], transformed_data['image'][None, :]], axis=0)
-            else:
-                data = np.concatenate([data, transformed_data['image']], axis=0)
+            # masks
+            info = self.image_info[index]
 
-            # concat
-            data = self.test_transforms(image = data)['image']
-            return data
+            # object number
+            n_objects = len(info['annotations'])
+            masks = np.zeros((data.shape[0], data.shape[1], len(info['annotations'])), dtype=np.uint8)
+            boxes = []
+        
+            whole_mask = np.zeros((data.shape[0], data.shape[1])) # for semantic segmentation
+            for i, annotation in enumerate(info['annotations']):
+                a_mask = self.rle_decode(annotation, (data.shape[0], data.shape[1])) # 이거 두 개가 바뀌어야 하는건가?
+                a_mask = Image.fromarray(a_mask)
+                whole_mask += a_mask
+                a_mask = np.array(a_mask) > 0
+                masks[:, :, i] = a_mask
+                
+                boxes.append(self.get_box(a_mask))
+            whole_mask[whole_mask>0] = 1
+            # dummy labels
+            labels = [1 for _ in range(n_objects)]
+            
+            #boxes = torch.as_tensor(boxes, dtype=torch.float32)
+            #labels = torch.as_tensor(labels, dtype=torch.int64)
+            #masks = torch.as_tensor(masks, dtype=torch.uint8)
+
+            image_id = torch.tensor([index])
+            boxes = np.array(boxes)
+            area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
+            iscrowd = torch.zeros((n_objects,), dtype=torch.int64)
+
+            # This is the required target for the Mask R-CNN
+            label = {
+                'boxes': boxes,
+                'labels': labels,
+                'masks': masks,
+                'image_id': image_id,
+                'area': area,
+                'iscrowd': iscrowd
+            }
+                
+            # basic transformation
+            #transformed_data= self.train_transformation(image = data, bboxes = label['boxes'], mask = whole_mask, bbox_classes=label['labels'])
+            #data, label['masks'], label['boxes'], label['labels'] =  transformed_data['image'], transformed_data['mask'], transformed_data['bboxes'], transformed_data['bbox_classes']
+            transformed_data= self.transformation(image = data, mask = whole_mask)
+            data, label['masks'] =  transformed_data['image'], transformed_data['mask']
+            mask_label = label['masks']
+            return data, mask_label

@@ -48,7 +48,7 @@ def create(conf, local_rank, world_size, mode='train'):
         )
     dataloader = torch.utils.data.DataLoader(
         temp_dataset,
-        batch_size=16,
+        batch_size=4,
         shuffle=False,
         pin_memory=True,
         drop_last=conf[mode]['drop_last'],
