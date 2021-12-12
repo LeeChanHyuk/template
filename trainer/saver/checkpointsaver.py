@@ -187,43 +187,46 @@ class CheckpointSaver:
         return epoch
 
 
-    def load_for_inference(self, model, rank):
+    def load_for_inference(self, model, rank, model_name = None):
         # For using DDP
         dist.barrier()
         # configure map_location properly
         map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
+        if model_name == None:
+            # path check
+            if not os.path.exists(self.load_dir):
+                os.makedirs(self.load_dir)
 
-        # path check
-        if not os.path.exists(self.load_dir):
-            os.makedirs(self.load_dir)
-
-        # define the loading path
-        if len(os.listdir(self.load_dir)) > 0:
-            top_dir = os.path.join(self.load_dir,self.top_save_path[2:])
-            top_save_path = os.path.join(top_dir, sorted(os.listdir(top_dir))[0])
-        else:
-            tmp_dir = os.listdir(self.date_path)
-            date_dir=[]
-            for dir in tmp_dir:
-                if '-' in dir:
-                    date_dir.append(dir)
-            dir_num = len(date_dir)
-            date_offset = 0
-            while 1:
-                # if the last date folder doesn't have checkpoint
-                try:
-                    last_top_dir = os.path.join(self.date_path,sorted(date_dir)[-2 + date_offset], self.top_save_path[2:])
-                    top_save_path = os.path.join(last_top_dir,sorted(os.listdir(last_top_dir))[0])
-                    break
-                except:
-                    if date_offset < -1*(dir_num - 2):
-                        raise AttributeError('You dont have pre-trained checkpoint')
+            # define the loading path
+            if len(os.listdir(self.load_dir)) > 0:
+                top_dir = os.path.join(self.load_dir,self.top_save_path[2:])
+                top_save_path = os.path.join(top_dir, sorted(os.listdir(top_dir))[0])
+            else:
+                tmp_dir = os.listdir(self.date_path)
+                date_dir=[]
+                for dir in tmp_dir:
+                    if '-' in dir:
+                        date_dir.append(dir)
+                dir_num = len(date_dir)
+                date_offset = 0
+                while 1:
+                    # if the last date folder doesn't have checkpoint
+                    try:
+                        last_top_dir = os.path.join(self.date_path,sorted(date_dir)[-2 + date_offset], self.top_save_path[2:])
+                        top_save_path = os.path.join(last_top_dir,sorted(os.listdir(last_top_dir))[0])
                         break
-                    else:
-                        date_offset -= 1
-
+                    except:
+                        if date_offset < -1*(dir_num - 2):
+                            raise AttributeError('You dont have pre-trained checkpoint')
+                            break
+                        else:
+                            date_offset -= 1
+        
         # Load state_dict
-        checkpoint = torch.load(top_save_path, map_location=map_location)
+        if model_name is None:
+            checkpoint = torch.load(top_save_path, map_location=map_location)
+        else:
+            checkpoint = torch.load(model_name, map_location=map_location)
         print(checkpoint['metric'])
         model.module.load_state_dict(checkpoint['model'])
         model.eval()

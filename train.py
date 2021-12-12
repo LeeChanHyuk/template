@@ -15,6 +15,7 @@ import torch.multiprocessing as mp
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.nn import DataParallel
 import torch.nn.functional as F
+from torch.utils import data
 from torch.utils.tensorboard.writer import SummaryWriter
 
 import torchvision
@@ -335,56 +336,68 @@ class Trainer():
             if self.is_master:
                 print(f'Epoch {epoch}/{self.conf.hyperparameter.epochs} - train_Acc: {train_acc[0]:.3f}, train_Loss: {train_loss[0]:.3f}, valid_Acc: {valid_acc[0]:.3f}, valid_Loss: {valid_loss[0]:.3f}')
 
-        def test(self):
-            # settings
-            model = self.build_model()
-            train_dl, train_sampler,valid_dl, valid_sampler, test_dl, test_sampler= self.build_dataloader()
-            # inference
-            model.eval()
-            pbar = tqdm(
-                enumerate(test_dl),
-                bar_format='{desc:<15}{percentage:3.0f}%|{bar:18}{r_bar}', 
-                total=len(test_dl),
-                disable=not self.is_master
-                ) # set progress bar
-            t_acc = np.zeros(1)
-            t_recall = np.zeros(1)
-            t_precision = np.zeros(1)
-            t_loss = np.zeros(1)
-            t_imgnum = np.zeros(1)
-            epoch = 1
+    def test_sample_visualization(self, y_pred, label, num, thresh=0.5):
+        y_pred = y_pred.detach().cpu().numpy()[0]
+        label = label.detach().cpu().numpy()[0]
+        y_pred[y_pred > thresh] = 1
+        y_pred[y_pred <= thresh] = 0
+        #img_grid = torchvision.utils.make_grid(y_pred)
+        #label_grid = torchvision.utils.make_grid(label)
+        self.writer.add_image(str(num) + '/prediction', y_pred, global_step=25, dataformats='HW')
+        self.writer.add_image(str(num) + '/label', label, global_step=25, dataformats='HW')
+        self.writer.flush()
 
-            for step, (image, label) in pbar:
-                image = image.to(device=self.rank, non_blocking=True).float()
-                label = label.to(device=self.rank, non_blocking=True).float()
-                with self.amp_autocast():
-                    input = image
-                    y_pred = model(input).squeeze()
-                    label = label.to(torch.int64)
-                    loss = criterion(y_pred, label).float()
-                accuracies, precisions, recalls = self.evaluation_for_semantic_segmentation(y_pred, label)
-                temp_acc, temp_recall, temp_precision, temp_imgnum = np.zeros(1), np.zeros(1), np.zeros(1), np.zeros(1)
-                for i in range(image.shape[0]):
-                    temp_acc += accuracies[i]
-                    temp_recall += recalls[i]
-                    temp_precision += precisions[i]
-                    t_acc += accuracies[i]
-                    t_recall += recalls[i]
-                    t_precision += precisions[i]
-                t_imgnum += image.shape[0]
-                t_loss += loss.item()
-                temp_imgnum += image.shape[0]
-                t_loss += loss.item()
-                if step % 100 == 0:
-                    pbar.set_postfix({'Test_Acc':temp_acc / temp_imgnum,'Test_Loss':round(loss.item(),2)}) 
-            if self.is_master:
-                self.writer.add_scalar("Loss/test", t_loss / t_imgnum, epoch)
-                self.writer.add_scalar("ACC/test", t_acc / t_imgnum, epoch)
-                self.writer.add_scalar("Recall/test", t_recall / t_imgnum, epoch)
-                self.writer.add_scalar("Precision/test", t_precision / t_imgnum, epoch)
-                self.writer.flush()
-                
-            return t_loss / t_imgnum, t_acc / t_imgnum
+
+
+
+    def test(self):
+        # settings
+        model = self.build_model()
+        optimizer = self.build_optimizer(model)
+        saver = self.build_saver(model, optimizer, self.scaler)
+        checkpoint_path = '/home/ddl/git/template/outputs/2021-12-11/Semantic_segmentation_class_1_training_with_complicate_augmentation(5-fold)/checkpoint/top/001st_checkpoint_epoch_158.pth.tar'
+        saver.load_for_inference(model, self.rank, checkpoint_path)
+        train_dl, train_sampler,valid_dl, valid_sampler, test_dl, test_sampler= self.build_dataloader()
+        # inference
+        pbar = tqdm(
+            enumerate(test_dl),
+            bar_format='{desc:<15}{percentage:3.0f}%|{bar:18}{r_bar}', 
+            total=len(test_dl),
+            disable=not self.is_master
+            ) # set progress bar
+        t_acc = np.zeros(1)
+        t_recall = np.zeros(1)
+        t_precision = np.zeros(1)
+        t_loss = np.zeros(1)
+        t_imgnum = np.zeros(1)
+        epoch = 1
+
+        for step, (image, label) in pbar:
+            image = image.to(device=self.rank, non_blocking=True).float()
+            label = label.to(device=self.rank, non_blocking=True).float()
+            with self.amp_autocast():
+                input = image
+                y_pred = model(input).squeeze()
+                label = label.to(torch.int64)
+            self.test_sample_visualization(y_pred, label, step)
+            accuracies, precisions, recalls = self.evaluation_for_semantic_segmentation(y_pred, label)
+            temp_acc, temp_recall, temp_precision, temp_imgnum = np.zeros(1), np.zeros(1), np.zeros(1), np.zeros(1)
+            for i in range(image.shape[0]):
+                temp_acc += accuracies[i]
+                temp_recall += recalls[i]
+                temp_precision += precisions[i]
+                t_acc += accuracies[i]
+                t_recall += recalls[i]
+                t_precision += precisions[i]
+            t_imgnum += image.shape[0]
+            temp_imgnum += image.shape[0]
+        if self.is_master:
+            self.writer.add_scalar("ACC/test", t_acc / t_imgnum, epoch)
+            self.writer.add_scalar("Recall/test", t_recall / t_imgnum, epoch)
+            self.writer.add_scalar("Precision/test", t_precision / t_imgnum, epoch)
+            self.writer.flush()
+            
+        return t_acc / t_imgnum, t_recall / t_imgnum, t_precision / t_imgnum
 
 
 
@@ -397,8 +410,8 @@ class Trainer():
         elif self.conf.base.mode == 'finetuning':
             pass
         elif self.conf.base.mode == 'test':
-            test_loss, test_acc = self.test()
-            print('test_loss:',test_loss,'test_acc:',test_acc)
+            test_acc, test_recall, test_precision = self.test()
+            print('test_acc:',test_acc, 'test_recall',test_recall, 'test_precision',test_precision)
 
 
 def set_seed(conf):
