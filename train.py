@@ -185,8 +185,7 @@ class Trainer():
             with self.amp_autocast():
                 input = image
                 y_pred = model(input).squeeze()
-                #y_pred = torch.argmax(y_pred, dim=1)[None,:]
-                #label = F.one_hot(label.to(torch.int64), num_classes=10)
+                logit = torch.argmax(y_pred, dim=1)
                 label = label.to(torch.int64)
                 loss = criterion(y_pred, label).float()
             optimizer.zero_grad(set_to_none=True)
@@ -260,8 +259,7 @@ class Trainer():
             with self.amp_autocast():
                 input = image
                 y_pred = model(input).squeeze()
-                #y_pred = torch.argmax(y_pred, dim=1)[None,:]
-                #label = F.one_hot(label.to(torch.int64), num_classes=10)
+                logit = torch.argmax(y_pred, dim=1)
                 label = label.to(torch.int64)
                 loss = criterion(y_pred, label).float()
             accuracies, precisions, recalls = self.evaluation_for_semantic_segmentation(y_pred, label)

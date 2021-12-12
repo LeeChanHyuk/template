@@ -14,6 +14,7 @@ from albumentations.pytorch.transforms import ToTensorV2
 import cv2
 from PIL import Image
 import collections
+import random
 
 class ch_dataset(torch.utils.data.Dataset):
     def __init__(self, conf, mode, width=512, height=512) -> None:
@@ -160,14 +161,23 @@ class ch_dataset(torch.utils.data.Dataset):
         
             whole_mask = np.zeros((data.shape[0], data.shape[1])) # for semantic segmentation
             for i, annotation in enumerate(info['annotations']):
-                a_mask = self.rle_decode(annotation, (data.shape[0], data.shape[1])) # 이거 두 개가 바뀌어야 하는건가?
-                a_mask = Image.fromarray(a_mask)
-                whole_mask += a_mask
-                a_mask = np.array(a_mask) > 0
-                masks[:, :, i] = a_mask
-                
-                boxes.append(self.get_box(a_mask))
-            whole_mask[whole_mask>0] = 1
+                try:
+                    a_mask = self.rle_decode(annotation, (data.shape[0], data.shape[1]),color = random.randint(0, 121)) # 이거 두 개가 바뀌어야 하는건가?
+                    a_mask = Image.fromarray(a_mask)
+                    a_mask = np.array(a_mask)
+                    a_mask_binary, whole_mask_binary = a_mask > 0 , whole_mask > 0
+                    logical_and = np.logical_and(a_mask_binary, whole_mask_binary)
+                    logical_and_matrix = np.zeros(logical_and.shape)
+                    logical_and_matrix[logical_and == True] = 0
+                    logical_and_matrix[logical_and == False] = 1
+                    a_mask = a_mask * logical_and_matrix
+                    whole_mask += a_mask
+                    masks[:, :, i] = a_mask
+                    
+                    boxes.append(self.get_box(a_mask))
+                except:
+                    a=1
+            #whole_mask[whole_mask>0] = 1 # for one class semantic segmentation
             # dummy labels
             labels = [1 for _ in range(n_objects)]
             
@@ -195,8 +205,7 @@ class ch_dataset(torch.utils.data.Dataset):
             #data, label['masks'], label['boxes'], label['labels'] =  transformed_data['image'], transformed_data['mask'], transformed_data['bboxes'], transformed_data['bbox_classes']
             transformed_data= self.train_transformation(image = data, mask = whole_mask)
             data, label['masks'] =  transformed_data['image'], transformed_data['mask']
-            mask_label = label['masks']
-            return data, mask_label
+            return data, label['masks']
             
         else: # for test dataset
             img_path = self.image_info[index]["image_path"]
@@ -212,14 +221,22 @@ class ch_dataset(torch.utils.data.Dataset):
         
             whole_mask = np.zeros((data.shape[0], data.shape[1])) # for semantic segmentation
             for i, annotation in enumerate(info['annotations']):
-                a_mask = self.rle_decode(annotation, (data.shape[0], data.shape[1])) # 이거 두 개가 바뀌어야 하는건가?
-                a_mask = Image.fromarray(a_mask)
-                whole_mask += a_mask
-                a_mask = np.array(a_mask) > 0
-                masks[:, :, i] = a_mask
-                
-                boxes.append(self.get_box(a_mask))
-            whole_mask[whole_mask>0] = 1
+                try:
+                    a_mask = self.rle_decode(annotation, (data.shape[0], data.shape[1]),color = random.randint(0, 121)) # 이거 두 개가 바뀌어야 하는건가?
+                    a_mask = Image.fromarray(a_mask)
+                    a_mask = np.array(a_mask)
+                    a_mask_binary, whole_mask_binary = a_mask > 0 , whole_mask > 0
+                    logical_and = np.logical_and(a_mask_binary, whole_mask_binary)
+                    logical_and_matrix = np.zeros(logical_and.shape)
+                    logical_and_matrix[logical_and == True] = 0
+                    logical_and_matrix[logical_and == False] = 1
+                    a_mask = a_mask * logical_and_matrix
+                    whole_mask += a_mask
+                    masks[:, :, i] = a_mask
+                    
+                    boxes.append(self.get_box(a_mask))
+                except:
+                    a=1
             # dummy labels
             labels = [1 for _ in range(n_objects)]
             
@@ -247,5 +264,4 @@ class ch_dataset(torch.utils.data.Dataset):
             #data, label['masks'], label['boxes'], label['labels'] =  transformed_data['image'], transformed_data['mask'], transformed_data['bboxes'], transformed_data['bbox_classes']
             transformed_data= self.transformation(image = data, mask = whole_mask)
             data, label['masks'] =  transformed_data['image'], transformed_data['mask']
-            mask_label = label['masks']
-            return data, mask_label
+            return data, label['masks']
