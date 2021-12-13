@@ -162,7 +162,11 @@ class CheckpointSaver:
                 try:
                     last_checkpoint_path = os.path.join(self.date_path,sorted(date_dir)[-2 + date_offset], 'checkpoint')
                     print('last checkpoint path = ', last_checkpoint_path)
-                    last_checkpoint_name = os.listdir(last_checkpoint_path)[1]
+                    checkpoints = os.listdir(last_checkpoint_path)
+                    for i in checkpoints:
+                        if 'last' in i:
+                            last_checkpoint_name = i
+                            break
                     print(last_checkpoint_name)
                     last_checkpoint_path = os.path.join(last_checkpoint_path, last_checkpoint_name)
                     break

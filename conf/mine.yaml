@@ -18,7 +18,7 @@ base:
     mode: gpu
   seed: '0xC0FFEE'
   save_dir: ./test
-  resume: False
+  resume: True
   debug: True
 
 MASTER_ADDR: '127.0.0.3'
