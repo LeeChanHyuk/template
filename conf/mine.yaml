@@ -13,7 +13,7 @@ defaults:
 base:
   world_size: 1
   use_amp: False
-  mode: train_eval
+  mode: test
   env:
     mode: gpu
   seed: '0xC0FFEE'

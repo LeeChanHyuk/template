@@ -153,6 +153,32 @@ class Trainer():
             precisions.append(precision)
             recalls.append(recall)
         return accuracies, precisions, recalls
+    
+    def evaluation_for_multi_class_semantic_segmentation(self, y_preds, labels):
+        y_preds = y_preds.detach().cpu().numpy()
+        labels = labels.detach().cpu().numpy()
+        accuracies = []
+        precisions = []
+        recalls = []
+        for y_pred, label in zip(y_preds, labels):
+            # thresholding
+            y_pred = np.rint(y_pred)
+            # label distinction
+            label = np.rint(label)
+            # TP, TN, FP, FN
+            TP = np.sum((y_pred == 1) * (label == 1)) 
+            TN = np.sum((y_pred == 0) * (label == 0))
+            FP = np.sum((y_pred == 1) * (label == 0))
+            FN = np.sum((y_pred == 0) * (label == 1))
+            # Calculate
+            accuracy = (TP + TN) / (TP + TN + FP + FN)
+            precision = TP / (TP + FP)
+            recall = (TP) / (TP + FN)
+            # save
+            accuracies.append(accuracy)
+            precisions.append(precision)
+            recalls.append(recall)
+        return accuracies, precisions, recalls
 
     def train_one_epoch(self, epoch, model, dl, criterion, optimizer,logger):
         # for step, (image, label) in tqdm(enumerate(dl), total=len(dl), desc="[Train] |{:3d}e".format(epoch), disable=not flags.is_master):
@@ -346,6 +372,32 @@ class Trainer():
         self.writer.flush()
 
 
+    def test_multiple_sample_visualization(self, y_pred, label, num, thresh=0.5):
+        y_pred = y_pred.detach().cpu().numpy()[0]
+        label = label.detach().cpu().numpy()[0]
+        y_pred = np.rint(y_pred)
+        logit = torch.argmax(y_pred, dim=0)
+        colors = []
+        for i in range(255):
+            random.seed(i)
+            r = random.randint(0, 255)
+            g = random.randint(0, 255)
+            b = random.randint(0, 255)
+            colors.append((r, g, b))
+        y_pred_new = np.zeros((y_pred.shape[1], y_pred.shape[2], 3))
+        for i in range(y_pred.shape[1]):
+            for j in range(y_pred.shape[2]):
+                value = y_pred[i, j]
+                if value<0:
+                    value *= -1
+                y_pred_new[i,j,0] = colors[value][0]
+                y_pred_new[i,j,1] = colors[value][1]
+                y_pred_new[i,j,2] = colors[value][2]
+        #img_grid = torchvision.utils.make_grid(y_pred)
+        #label_grid = torchvision.utils.make_grid(label)
+        self.writer.add_image(str(num) + '/prediction', y_pred_new, global_step=25, dataformats='HWC')
+        self.writer.add_image(str(num) + '/label', label, global_step=25, dataformats='HW')
+        self.writer.flush()
 
 
     def test(self):
@@ -353,7 +405,7 @@ class Trainer():
         model = self.build_model()
         optimizer = self.build_optimizer(model)
         saver = self.build_saver(model, optimizer, self.scaler)
-        checkpoint_path = '/home/ddl/git/template/outputs/2021-12-11/Semantic_segmentation_class_1_training_with_complicate_augmentation(5-fold)/checkpoint/top/001st_checkpoint_epoch_158.pth.tar'
+        checkpoint_path = '/home/ddl/git/template/outputs/2021-12-13/multi_class_semantic_segmetation_2/checkpoint/last_checkpoint_epoch_124.pth.tar'
         saver.load_for_inference(model, self.rank, checkpoint_path)
         train_dl, train_sampler,valid_dl, valid_sampler, test_dl, test_sampler= self.build_dataloader()
         # inference
@@ -377,7 +429,7 @@ class Trainer():
                 input = image
                 y_pred = model(input).squeeze()
                 label = label.to(torch.int64)
-            self.test_sample_visualization(y_pred, label, step)
+            self.test_multiple_sample_visualization(y_pred, label, step)
             accuracies, precisions, recalls = self.evaluation_for_semantic_segmentation(y_pred, label)
             temp_acc, temp_recall, temp_precision, temp_imgnum = np.zeros(1), np.zeros(1), np.zeros(1), np.zeros(1)
             for i in range(image.shape[0]):
