@@ -3,7 +3,7 @@ seed          : 101
 debug         : False # set debug=False for Full Training
 exp_name      : 'Unet-effnetb2-512x512-aug2'
 model_name    : 'Unet'
-backbone      : 'efficientnet-b2'
+backbone      : 'timm-efficientnet-b7'
 train_bs      : 24
 valid_bs      : 48
 img_size      : [512, 512]
@@ -20,4 +20,4 @@ n_fold        : 5
 num_classes   : 1
 device        : torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 competition   : 'sartorius'
-_wandb_kernel : 'awsaf49'
+_wandb_kernel : 'leechanhyuk'

@@ -1,3 +1,1 @@
-batch_size: 8
 epochs: 200
-lr: 1e-3

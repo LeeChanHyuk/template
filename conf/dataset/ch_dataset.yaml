@@ -25,6 +25,7 @@ train:
   label_path : '/home/ddl/git/template/dataset/cell_dataset/train_split.csv'
   submission_path : '/home/ddl/git/template/dataset/cell_dataset/sample_submission.csv'
   drop_last : True
+  batch_size : 2
 
 valid:
   name : 'dataset'
@@ -32,6 +33,7 @@ valid:
   label_path : '/home/ddl/git/template/dataset/cell_dataset/train_split.csv'
   submission_path : '/home/ddl/git/template/dataset/cell_dataset/sample_submission.csv'
   drop_last : True
+  batch_size : 2
 
 test:
   name : 'dataset'
@@ -39,3 +41,4 @@ test:
   label_path : '/home/ddl/git/template/dataset/cell_dataset/test_split.csv'
   submission_path : '/home/ddl/git/template/dataset/cell_dataset/sample_submission.csv'
   drop_last : True
+  batch_size : 2
