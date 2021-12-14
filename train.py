@@ -373,23 +373,24 @@ class Trainer():
 
 
     def test_multiple_sample_visualization(self, y_pred, label, num, thresh=0.5):
+        y_pred = torch.argmax(y_pred, dim=0)
         y_pred = y_pred.detach().cpu().numpy()[0]
         label = label.detach().cpu().numpy()[0]
         y_pred = np.rint(y_pred)
-        logit = torch.argmax(y_pred, dim=0)
         colors = []
         for i in range(255):
+            if i == 0:
+                colors.append((0,0,0))
+                continue
             random.seed(i)
             r = random.randint(0, 255)
             g = random.randint(0, 255)
             b = random.randint(0, 255)
             colors.append((r, g, b))
-        y_pred_new = np.zeros((y_pred.shape[1], y_pred.shape[2], 3))
-        for i in range(y_pred.shape[1]):
-            for j in range(y_pred.shape[2]):
-                value = y_pred[i, j]
-                if value<0:
-                    value *= -1
+        y_pred_new = np.zeros((y_pred.shape[0], y_pred.shape[1], 3))
+        for i in range(y_pred.shape[0]):
+            for j in range(y_pred.shape[1]):
+                value = int(y_pred[i, j])
                 y_pred_new[i,j,0] = colors[value][0]
                 y_pred_new[i,j,1] = colors[value][1]
                 y_pred_new[i,j,2] = colors[value][2]
