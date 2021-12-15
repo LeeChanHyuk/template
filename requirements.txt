@@ -11,4 +11,4 @@ hydra-core
 efficientnet_pytorch
 timm
 segmentation_models_pytorch
-albumentations
+albumentations==1.0.3
