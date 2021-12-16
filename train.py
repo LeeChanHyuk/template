@@ -262,11 +262,22 @@ class Trainer():
             #seg_array = seg_array.to(device=self.rank, non_blocking=True).float()
             with self.amp_autocast():
                 input = image
-                y_pred = model(input).squeeze()
+                y_pred = model(input)
+                if len(y_pred.shape) == 4:
+                    y_pred = torch.argmax(y_pred, dim=1)
+                else:
+                    y_pred = torch.argmax(y_pred, dim=0)
+                if len(y_pred.shape) != len(label.shape):
+                    if len(y_pred.shape) > len(label.shape):
+                        label = torch.unsqueeze(label, dim=0)
+                    else:
+                        y_pred = torch.unsqueeze(y_pred, dim=0)
                 #y_pred = torch.argmax(y_pred, dim=1)[None,:]
                 #label = F.one_hot(label.to(torch.int64), num_classes=10)
+                y_pred = y_pred.to(torch.float)
                 label = label.to(torch.int64)
                 loss = criterion(y_pred, label).float()
+                loss.requires_grad=False
             accuracies, ious = self.evaluation_for_semantic_segmentation(y_pred, label)
             temp_acc, temp_iou, temp_imgnum = np.zeros(1), np.zeros(1), np.zeros(1)
             for i in range(image.shape[0]):
