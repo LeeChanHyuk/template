@@ -17,7 +17,7 @@ def create(conf, rank):
     elif conf['type'] ==  'MSE': 
         criterion = nn.MSELoss()
     elif conf['type'] == 'jaccard':
-        criterion = smp.losses.JaccardLoss(mode='binary')
+        criterion = smp.losses.JaccardLoss(**conf['params'])
     elif conf['type'] == 'jaccard_no_logits':
         criterion = smp.losses.JaccardLoss(mode='binary', from_logits=False)
     elif conf['type'] == 'dice':

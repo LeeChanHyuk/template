@@ -48,7 +48,7 @@ def create(conf, num_classes=None):
     elif base == 'unet':
         architecture = smp.Unet(
         encoder_name=conf['backbone'],      # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
-        encoder_weights="noisy-student",     # use `imagenet` pre-trained weights for encoder initialization
+        encoder_weights="imagenet",     # use `imagenet` pre-trained weights for encoder initialization
         in_channels=3,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
         classes=conf['num_classes'],        # model output channels (number of classes in your dataset)
         activation=None,
