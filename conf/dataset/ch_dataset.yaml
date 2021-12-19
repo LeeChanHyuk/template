@@ -1,49 +1,49 @@
 train:
   name : 'dataset'
-  dataset_path : '/home/ddl/git/template/dataset/cell_dataset/train'
-  label_path : '/home/ddl/git/template/dataset/cell_dataset/train_split.csv'
-  submission_path : '/home/ddl/git/template/dataset/cell_dataset/sample_submission.csv'
+  dataset_path : '/content/drive/MyDrive/template/dataset/cell_dataset/train'
+  label_path : '/content/drive/MyDrive/template/dataset/cell_dataset/train_split.csv'
+  submission_path : '/content/drive/MyDrive/template/dataset/cell_dataset/sample_submission.csv'
   drop_last : True
-  batch_size : 2
+  batch_size : 4
 
 valid:
   name : 'dataset'
-  dataset_path : '/home/ddl/git/template/dataset/cell_dataset/train'
-  label_path : '/home/ddl/git/template/dataset/cell_dataset/train_split.csv'
-  submission_path : '/home/ddl/git/template/dataset/cell_dataset/sample_submission.csv'
+  dataset_path : '/content/drive/MyDrive/template/dataset/cell_dataset/train'
+  label_path : '/content/drive/MyDrive/template/dataset/cell_dataset/train_split.csv'
+  submission_path : '/content/drive/MyDrive/template/dataset/cell_dataset/sample_submission.csv'
   drop_last : True
-  batch_size : 2
+  batch_size : 4
 
 test:
   name : 'dataset'
-  dataset_path : '/home/ddl/git/template/dataset/cell_dataset/train'
-  label_path : '/home/ddl/git/template/dataset/cell_dataset/test_split.csv'
-  submission_path : '/home/ddl/git/template/dataset/cell_dataset/sample_submission.csv'
+  dataset_path : '/content/drive/MyDrive/template/dataset/cell_dataset/train'
+  label_path : '/content/drive/MyDrive/template/dataset/cell_dataset/test_split.csv'
+  submission_path : '/content/drive/MyDrive/template/dataset/cell_dataset/sample_submission.csv'
   drop_last : True
-  batch_size : 2
+  batch_size : 4
 #train:
 #  name : 'dataset'
-#  dataset_path : '/content/drive/MyDrive/template/dataset/cell_dataset/train'
-#  label_path : '/content/drive/MyDrive/template/dataset/cell_dataset/train_split.csv'
-#  submission_path : '/content/drive/MyDrive/template/dataset/cell_dataset/sample_submission.csv'
+#  dataset_path : '/home/ddl/git/template/dataset/cell_dataset/train'
+#  label_path : '/home/ddl/git/template/dataset/cell_dataset/train_split.csv'
+#  submission_path : '/home/ddl/git/template/dataset/cell_dataset/sample_submission.csv'
 #  drop_last : True
-#  batch_size : 4
+#  batch_size : 2
 #
 #valid:
 #  name : 'dataset'
-#  dataset_path : '/content/drive/MyDrive/template/dataset/cell_dataset/train'
-#  label_path : '/content/drive/MyDrive/template/dataset/cell_dataset/train_split.csv'
-#  submission_path : '/content/drive/MyDrive/template/dataset/cell_dataset/sample_submission.csv'
+#  dataset_path : '/home/ddl/git/template/dataset/cell_dataset/train'
+#  label_path : '/home/ddl/git/template/dataset/cell_dataset/train_split.csv'
+#  submission_path : '/home/ddl/git/template/dataset/cell_dataset/sample_submission.csv'
 #  drop_last : True
-#  batch_size : 4
+#  batch_size : 2
 #
 #test:
 #  name : 'dataset'
-#  dataset_path : '/content/drive/MyDrive/template/dataset/cell_dataset/train'
-#  label_path : '/content/drive/MyDrive/template/dataset/cell_dataset/test_split.csv'
-#  submission_path : '/content/drive/MyDrive/template/dataset/cell_dataset/sample_submission.csv'
+#  dataset_path : '/home/ddl/git/template/dataset/cell_dataset/train'
+#  label_path : '/home/ddl/git/template/dataset/cell_dataset/test_split.csv'
+#  submission_path : '/home/ddl/git/template/dataset/cell_dataset/sample_submission.csv'
 #  drop_last : True
-#  batch_size : 4
+#  batch_size : 2
 #train:
 #  name : 'dataset'
 #  dataset_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/train'
