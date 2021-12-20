@@ -1,49 +1,49 @@
 train:
   name : 'dataset'
-  dataset_path : '/content/drive/MyDrive/template/dataset/cell_dataset/train'
-  label_path : '/content/drive/MyDrive/template/dataset/cell_dataset/train_split.csv'
-  submission_path : '/content/drive/MyDrive/template/dataset/cell_dataset/sample_submission.csv'
+  dataset_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/train'
+  label_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/train_split.csv'
+  submission_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/sample_submission.csv'
   drop_last : True
-  batch_size : 4
+  batch_size : 1
 
 valid:
   name : 'dataset'
-  dataset_path : '/content/drive/MyDrive/template/dataset/cell_dataset/train'
-  label_path : '/content/drive/MyDrive/template/dataset/cell_dataset/train_split.csv'
-  submission_path : '/content/drive/MyDrive/template/dataset/cell_dataset/sample_submission.csv'
+  dataset_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/train'
+  label_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/train_split.csv'
+  submission_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/sample_submission.csv'
   drop_last : True
-  batch_size : 4
+  batch_size : 1
 
 test:
   name : 'dataset'
-  dataset_path : '/content/drive/MyDrive/template/dataset/cell_dataset/train'
-  label_path : '/content/drive/MyDrive/template/dataset/cell_dataset/test_split.csv'
-  submission_path : '/content/drive/MyDrive/template/dataset/cell_dataset/sample_submission.csv'
+  dataset_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/train'
+  label_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/test_split.csv'
+  submission_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/sample_submission.csv'
   drop_last : True
-  batch_size : 4
+  batch_size : 1
 #train:
 #  name : 'dataset'
-# dataset_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/train'
-#  label_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/train_split.csv'
-#  submission_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/sample_submission.csv'
+#  dataset_path : '/content/drive/MyDrive/template/dataset/cell_dataset/train'
+#  label_path : '/content/drive/MyDrive/template/dataset/cell_dataset/train_split.csv'
+#  submission_path : '/content/drive/MyDrive/template/dataset/cell_dataset/sample_submission.csv'
 #  drop_last : True
-#  batch_size : 1
+#  batch_size : 4
 #
 #valid:
 #  name : 'dataset'
-#  dataset_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/train'
-#  label_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/train_split.csv'
-#  submission_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/sample_submission.csv'
+#  dataset_path : '/content/drive/MyDrive/template/dataset/cell_dataset/train'
+#  label_path : '/content/drive/MyDrive/template/dataset/cell_dataset/train_split.csv'
+#  submission_path : '/content/drive/MyDrive/template/dataset/cell_dataset/sample_submission.csv'
 #  drop_last : True
-#  batch_size : 1
+#  batch_size : 4
 #
 #test:
 #  name : 'dataset'
-#  dataset_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/train'
-#  label_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/test_split.csv'
-#  submission_path : '/media/ddl/새 볼륨/Git/template/datasets/sartorius-cell-instance-segmentation/sample_submission.csv'
+#  dataset_path : '/content/drive/MyDrive/template/dataset/cell_dataset/train'
+#  label_path : '/content/drive/MyDrive/template/dataset/cell_dataset/test_split.csv'
+#  submission_path : '/content/drive/MyDrive/template/dataset/cell_dataset/sample_submission.csv'
 #  drop_last : True
-#  batch_size : 1
+#  batch_size : 4
 # colab path
 #train:
 #  name : 'dataset'

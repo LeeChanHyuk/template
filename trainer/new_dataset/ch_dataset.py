@@ -173,8 +173,8 @@ class ch_dataset(torch.utils.data.Dataset):
                 masks[:, :, i] = a_mask
                 
                 boxes.append(self.get_box(a_mask))
-            whole_mask[whole_mask>1] = 1
             whole_mask[whole_mask==1] = 0
+            whole_mask[whole_mask>1] = 1
             whole_mask[whole_mask<1] = 0
             # dummy labels
             labels = [1 for _ in range(n_objects)]
