@@ -186,11 +186,11 @@ class Trainer():
                 #    y_pred = torch.argmax(y_pred, dim=1)
                 #else:
                 #    y_pred = torch.argmax(y_pred, dim=0)
-                #if len(y_pred.shape) != len(label.shape):
-                #    if len(y_pred.shape) > len(label.shape):
-                #        label = torch.unsqueeze(label, dim=1)
-                #    else:
-                #        y_pred = torch.unsqueeze(y_pred, dim=1)
+                if len(y_pred.shape) != len(label.shape):
+                    if len(y_pred.shape) > len(label.shape):
+                        label = torch.unsqueeze(label, dim=1)
+                    else:
+                        y_pred = torch.unsqueeze(y_pred, dim=1)
                 #y_pred = torch.argmax(y_pred, dim=1)[None,:]
                 #label = F.one_hot(label.to(torch.int64), num_classes=10)
                 y_pred = y_pred.to(torch.float)
@@ -267,11 +267,11 @@ class Trainer():
                 #    y_pred = torch.argmax(y_pred, dim=1)
                 #else:
                 #    y_pred = torch.argmax(y_pred, dim=0)
-                #if len(y_pred.shape) != len(label.shape):
-                #    if len(y_pred.shape) > len(label.shape):
-                #        label = torch.unsqueeze(label, dim=1)
-                #    else:
-                #        y_pred = torch.unsqueeze(y_pred, dim=1)
+                if len(y_pred.shape) != len(label.shape):
+                    if len(y_pred.shape) > len(label.shape):
+                        label = torch.unsqueeze(label, dim=1)
+                    else:
+                        y_pred = torch.unsqueeze(y_pred, dim=1)
                 #y_pred = torch.argmax(y_pred, dim=1)[None,:]
                 #label = F.one_hot(label.to(torch.int64), num_classes=10)
                 y_pred = y_pred.to(torch.float)
