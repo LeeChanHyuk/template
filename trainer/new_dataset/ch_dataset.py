@@ -162,6 +162,7 @@ class ch_dataset(torch.utils.data.Dataset):
             for i, annotation in enumerate(info['annotations']):
                 a_mask = self.rle_decode(annotation, (data.shape[0], data.shape[1])) # 이거 두 개가 바뀌어야 하는건가?
                 a_mask_int = a_mask.astype('uint8')
+                
                 viz = np.zeros((a_mask.shape[0], a_mask.shape[1], 3), dtype='uint8')
                 contours, hierarchy = cv2.findContours(a_mask_int, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
                 for cnt in contours:
@@ -173,9 +174,7 @@ class ch_dataset(torch.utils.data.Dataset):
                 masks[:, :, i] = a_mask
                 
                 boxes.append(self.get_box(a_mask))
-            whole_mask[whole_mask==1] = 0
             whole_mask[whole_mask>1] = 1
-            whole_mask[whole_mask<1] = 0
             # dummy labels
             labels = [1 for _ in range(n_objects)]
             
