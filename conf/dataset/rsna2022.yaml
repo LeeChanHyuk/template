@@ -1,0 +1,15 @@
+train:
+  name : 'dataset'
+  dataset_path : '/home/chanhyuk/git/template/dataset/numpy/train_arrays'
+  label_path : '/home/chanhyuk/git/template/train.csv'
+  train_bounding_box_label_path: '/home/chanhyuk/git/template/train_bounding_boxes.csv'
+  submission_path : '/home/chanhyuk/git/template/sample_submission.csv'
+  pixel_count_label_path: '/home/chanhyuk/git/template/meta_segmentation_pixelcount.csv'
+  drop_last : True
+
+
+test:
+  name : 'dataset'
+  dataset_path : '/home/chanhyuk/git/template/dataset/rsna-2022-cervical-spine-fracture-detection/test_images'
+  submission_path : '/home/chanhyuk/git/template/sample_submission.csv'
+  drop_last : True

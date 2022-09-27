@@ -5,3 +5,7 @@ tqdm
 pandas
 tensorboard
 seaborn
+efficientnet_pytorch
+timm
+albumentations
+torchio

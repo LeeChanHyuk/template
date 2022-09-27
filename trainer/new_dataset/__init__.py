@@ -2,8 +2,10 @@
 # init에서 create가 들어가는 이유는 만들고자하는 dataset이 하나가 아니라 여러 개 일 때, 여기서 총체적으로 관리할 수 있기 때문이다.
 # 즉, dataset을 만들 때 필요한 정보 관리 등이나 인자들을 여기서 만들어서 전달하자.
 
+from curses.ascii import RS
 import logging
 from .ch_dataset import ch_dataset
+from .rsna_2022_dataset import RSNA_2022_dataset
 
 import torch.utils.data
 import torch
@@ -14,6 +16,23 @@ def create(conf, local_rank, world_size, mode='train'):
 
     if conf[mode]['name'] == 'dataset':
         dataset = ch_dataset(conf, mode)
+        sampler = torch.utils.data.distributed.DistributedSampler(
+                dataset, 
+                num_replicas=world_size, 
+                rank=local_rank,
+                shuffle=(mode == 'train')
+            )
+        dataloader = torch.utils.data.DataLoader(
+            dataset,
+            batch_size=4,
+            shuffle=False,
+            pin_memory=True,
+            drop_last=conf[mode]['drop_last'],
+            num_workers=0,
+            sampler=sampler
+        )
+    elif conf[mode]['name'] == 'RSNA2022':
+        dataset = RSNA_2022_dataset(conf, mode)
         sampler = torch.utils.data.distributed.DistributedSampler(
                 dataset, 
                 num_replicas=world_size, 

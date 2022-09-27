@@ -34,7 +34,6 @@ def create(conf, num_classes=None):
         #architecture._conv_stem.weight = torch.nn.Parameter(totalweigh)
 
     elif base == 'resnet':
-        
         if architecture_name == '34': 
             architecture = torch_models.resnet34(True,{num_classes:1})
         elif architecture_name == '50': 

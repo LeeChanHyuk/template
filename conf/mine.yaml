@@ -1,7 +1,7 @@
 defaults:
   - log : tensorboard
   - architecture: efficientv2
-  - dataset: mnist
+  - dataset: rsna2022
   - loss: ce
   - optimizer: adam
   - hyperparameter: toy
